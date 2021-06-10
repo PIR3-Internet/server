@@ -11,7 +11,6 @@ from multiprocessing import Process, Value
 TIMEOUT = Value('i', 5)
 cMax = Value('i', 2)
 ca_num = Value('i', 0)
-#table_exists = False
 
 class TimeoutException(Exception):
     pass
@@ -86,8 +85,6 @@ def get_url(user, counter, error):
 
 
 def processus(user):
-    #con = sqlite3.connect('ca-providers2.db')
-    #cur = con.cursor()
 
     counter = 0
     ok = False
@@ -110,9 +107,6 @@ def processus(user):
                 if (TIMEOUT.value != 60):
                     TIMEOUT.value = 60
                     counter -= counter
-                #elif (user != user_old):
-                #    user = user_old
-                #    counter -= counter
                 else:
                     cur.execute("INSERT INTO errors VALUES (?, ?, ?)", (user, user.split('.')[len(user.split('.'))-1], repr(e)))
             else:
@@ -139,41 +133,24 @@ def processus(user):
             
 
 
-con = sqlite3.connect('ca-providers2.db')
+con = sqlite3.connect('ca-providers.db')
 cur = con.cursor()
 try:
     cur.execute("CREATE TABLE ca (ca_user, ca_provider, ca_num)")
 except sqlite3.OperationalError:
     cur.execute("DELETE FROM ca")
-    #table_exists = True
-    #cur.execute("SELECT MAX(ca_num) FROM ca")
-    #ca_num.value = cur.fetchall()[0][0]
 try:
     cur.execute("CREATE TABLE errors (user, extension, error)")
 except sqlite3.OperationalError:
     cur.execute("DELETE FROM errors")
 
-#con.close()
 con.commit()
 
 debut = 0
 with open("list1m2020.csv", "r") as f:
     for line in f:
 
-        #if table_exists:
-        #    if debut <= ca_num.value:
-        #        debut += 1
-        #    else:
-        #        table_exists = False
-
-        #else:
-
         user = line.split()[0]
-            #user_old = user
-            #user, counter = get_url(user, counter)
-            #if counter == cMax:
-            #    ok = True
-            #    ca_num += 1
 
         p = Process(target=processus, args=(user,))
         p.start()

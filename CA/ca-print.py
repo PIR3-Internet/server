@@ -4,7 +4,7 @@ from cryptography.x509 import Extensions
 import matplotlib.pyplot as plt
 import numpy as np
 
-con = sqlite3.connect('ca-providers2.db')
+con = sqlite3.connect('ca-providers.db')
 cur = con.cursor()
 
 #cur.execute("select * from ca")
@@ -15,7 +15,6 @@ cur.execute("UPDATE ca SET ca_provider='DigiCert Inc' WHERE ca_provider='DigiCer
 cur.execute("UPDATE ca SET ca_provider='Google Trust Services' WHERE ca_provider='Google Trust Services LLC'")
 #beyond Google Trust Services, we merge all providers together
 cur.execute("UPDATE ca SET ca_provider='Others' WHERE ca_provider NOT IN ('DigiCert Inc', 'Cloudflare, Inc.', \"Let's Encrypt\", 'Sectigo Limited', 'GlobalSign nv-sa', 'Amazon', 'GoDaddy.com, Inc.', 'Google Trust Services')")
-
 
 ##################                       CAMEMBERT                      ##################################
 
@@ -40,11 +39,9 @@ ca_provider.append(data[0][0])
 provider_count.append(data[0][1])
     
 #cur.execute("SELECT ca_provider FROM ca GROUP BY ca.ca_provider ORDER BY COUNT(*) DESC")
-labels = ca_provider #labels =
+labels = ca_provider
 #cur.execute("SELECT COUNT(*) provider_count FROM ca GROUP BY ca.ca_provider ORDER BY provider_count DESC")
-sizes = provider_count #sizes = 
-#colors = ['gold', 'yellowgreen', 'lightcoral', 'lightskyblue']
-#explode = (0.1, 0, 0, 0)  # explode 1st slice
+sizes = provider_count  
 
 
 ########################                           CUMULATIVE FLOW DIAGRAM                           #########################
@@ -54,6 +51,7 @@ i_max = cur.fetchall()[0][0]
 print(i_max)
 
 scales = np.arange(0, i_max, 100)
+scales = scales+99
 
 DigiCert = []
 Cloudflare = []
@@ -160,17 +158,17 @@ providers_values = np.row_stack((DigiCert, Cloudflare, Let_s_Encrypt, Sectigo, G
 providers = ['DigiCert Inc', 'Cloudflare, Inc.', 'Let\'s Encrypt', 'Sectigo Limited', 'GlobalSign nv-sa', 'Amazon', 'GoDaddy.com, Inc.', 'Google Trust Services', 'Others']
 
 
-# Plot
+# Plot the pie chart 
 plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, pctdistance=0.85)   #patches, texts = 
 #plt.legend(patches, labels, loc="best")
-plt.title('CA Providers\n')
+plt.title('CA Providers for ' + str(i_max) + ' websites\n')
 centre_circle = plt.Circle((0,0),0.70,fc='white')
 fig = plt.gcf()
 fig.gca().add_artist(centre_circle)
 plt.axis('equal')
 plt.tight_layout()
 plt.show()
-plt.savefig("camembert.png")
+plt.savefig("camemberts/"+str(i_max)+"camembert.png")
 
 
 # plot the cumulative histogram
@@ -179,17 +177,28 @@ for val in range(len(providers)):
     ax.plot(scales, providers_values[val], linewidth=1.5, label=providers[val])
 ax.grid(True)
 ax.legend(loc='best')
-ax.set_title('CA')
+ax.set_title('CA of ' + str(i_max) + ' websites')
 ax.set_xlabel('Most visited websites')
 ax.set_ylabel('Number of CA provided')
 plt.show()
-plt.savefig("CFD.png")
+plt.savefig("CFD/CFD.png")
+
+
+# plot the relative cumulative histogram
+fig, ax = plt.subplots()
+for val in range(len(providers)):
+    ax.plot(scales, (providers_values/(scales))[val], linewidth=1.5, label=providers[val])
+ax.grid(True)
+ax.legend(loc='best')
+ax.set_title('CA of ' + str(i_max) + ' websites')
+ax.set_xlabel('Most visited websites')
+ax.set_ylabel('Number of CA provided')
+plt.show()
+plt.savefig("CFD/CFD_relative.png")
 
 
 #check results from table errors
-#cur.execute("SELECT * FROM errors ORDER BY error ASC")
-#errors = cur.fetchall()
-#print(errors)
+print("")
 
 cur.execute("SELECT COUNT(*) FROM errors")
 nb_errors = cur.fetchall()[0][0]
@@ -197,7 +206,7 @@ print("Number of errors : ", nb_errors)
 
 cur.execute("SELECT error, COUNT(*) error_count FROM errors GROUP BY error ORDER BY error_count DESC")
 errors = cur.fetchall()
-print(errors)
+print(errors, "\n")
 
 cur.execute("SELECT extension, COUNT(*) extension_count FROM errors GROUP BY extension ORDER BY extension_count DESC")
 extensions = cur.fetchall()
@@ -205,9 +214,35 @@ print(extensions)
 
 print("")
 
-cur.execute("SELECT error, extension, COUNT(*) extension_count FROM errors GROUP BY error, extension ORDER BY extension_count DESC")
+cur.execute("SELECT user FROM errors WHERE extension IS 'com' ORDER BY user ASC")
 data = cur.fetchall()
 print(data)
+
+extension = []
+extension_count = []
+nb_others = 0
+j = 0
+for row in extensions:
+    if j < 15:
+        extension.append(row[0])
+        extension_count.append(row[1])
+    else:
+        nb_others += row[1]
+    j += 1
+extension.append('Others')
+extension_count.append(nb_others)
+
+# Plot the pie chart for errors
+fig, ax = plt.subplots()
+plt.pie(extension_count, labels=extension, autopct='%1.1f%%', startangle=90, pctdistance=0.85)
+plt.title(str(nb_errors) + ' errors\n')
+centre_circle = plt.Circle((0,0),0.70,fc='white')
+fig = plt.gcf()
+fig.gca().add_artist(centre_circle)
+plt.axis('equal')
+plt.tight_layout()
+plt.show()
+plt.savefig("errors/errors.png")
 
 
 con.close()
